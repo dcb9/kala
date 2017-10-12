@@ -13,7 +13,7 @@ import (
 )
 
 var (
-	jobBucket = []byte("jobs")
+	jobBucket       = []byte("jobs")
 )
 
 func GetBoltDB(path string) *BoltJobDB {
@@ -129,4 +129,8 @@ func (db *BoltJobDB) Save(j *job.Job) error {
 		return nil
 	})
 	return err
+}
+
+func (db *BoltJobDB) Update(fn func(*bolt.Tx) error) error {
+	return db.dbConn.Update(fn)
 }

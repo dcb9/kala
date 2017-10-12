@@ -14,6 +14,7 @@ import (
 	redislib "github.com/garyburd/redigo/redis"
 
 	log "github.com/Sirupsen/logrus"
+	"github.com/ajvb/kala/job/fixed"
 	"github.com/codegangsta/cli"
 )
 
@@ -155,8 +156,14 @@ func main() {
 				log.Infof("Preparing cache")
 				cache.Start(time.Duration(c.Int("persist-every")) * time.Second)
 
+				fixedJobs, err := fixed.LoadFixedJobs(db.(*boltdb.BoltJobDB))
+				if err != nil {
+					log.Fatal(err)
+				}
+				go fixed.PersistEvery(30*time.Second, db.(*boltdb.BoltJobDB), &fixedJobs)
+
 				log.Infof("Starting server on port %s", connectionString)
-				log.Fatal(api.StartServer(connectionString, cache, db, c.String("default-owner")))
+				log.Fatal(api.StartServer(connectionString, cache, db, c.String("default-owner"), &fixedJobs))
 			},
 		},
 	}
