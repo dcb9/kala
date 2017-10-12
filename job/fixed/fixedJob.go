@@ -13,13 +13,17 @@ import (
 
 type Job struct {
 	Name     string
-	Schedule string
 	ID       string
 }
 
 var (
 	fixedJobsBucket = []byte("fixed-jobs")
 	fixedJobsKey    = []byte("fixed-jobs")
+)
+
+const (
+	DefaultSiteCrawlerInterval         = "P2D"
+	DefaultProductPagesCrawlerInterval = "P1D"
 )
 
 func LoadFixedJobs(db *boltdb.BoltJobDB) ([]*Job, error) {

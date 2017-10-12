@@ -15,8 +15,8 @@ import (
 	"github.com/ajvb/kala/job/storage/boltdb"
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
-	"strings"
 	"time"
+	"strings"
 )
 
 const (
@@ -139,14 +139,7 @@ func HandleFixedJobsRequest(cache job.JobCache, db job.JobDB, fixedJobs *[]*fixe
 					break
 				}
 			}
-			if found {
-				// @todo do nothing on manual changed job
-
-				if j.Schedule != j2.Schedule {
-					deletingJobs = append(deletingJobs, j2)
-					addingJobs = append(addingJobs, j)
-				}
-			} else {
+			if !found {
 				addingJobs = append(addingJobs, j)
 			}
 		}
@@ -179,24 +172,28 @@ func HandleFixedJobsRequest(cache job.JobCache, db job.JobDB, fixedJobs *[]*fixe
 		}
 
 		for _, addingJ := range addingJobs {
-			s := strings.Split(addingJ.Schedule, "/")
-			if len(s) != 2 {
-				errStr := fmt.Sprintf(`Schedule is invalid, skipped`)
-				log.Error(errStr)
+			now := time.Now()
+			now = now.Add(10 * time.Second)
+
+			var intervalBetweenRuns string
+			if strings.HasSuffix(addingJ.Name, "-site-crawler") {
+				intervalBetweenRuns = fixed.DefaultSiteCrawlerInterval
+			} else if strings.HasSuffix(addingJ.Name, "-product-pages-crawler") {
+				intervalBetweenRuns = fixed.DefaultProductPagesCrawlerInterval
+			} else {
+				errStr := fmt.Sprintf(`job suffix must be "-site-crawler" OR "-product-pages-crawler"`)
+				log.Error("job name: " + addingJ.Name, errStr)
 				errors = append(errors, &FixedJobError{
 					Job:    addingJ,
-					Method: MethodAdd,
+					Method: "Add",
 					Error:  errStr,
 				})
 				continue
 			}
 
-			now := time.Now()
-			now = now.Add(10 * time.Second)
-
 			newJob := &job.Job{
 				Name:     addingJ.Name,
-				Schedule: fmt.Sprintf("%s/%s/%s", s[0], now.Format(time.RFC3339), s[1]),
+				Schedule: fmt.Sprintf("R/%s/", now.Format(time.RFC3339), intervalBetweenRuns),
 				JobType:  job.RemoteJob,
 				RemoteProperties: job.RemoteProperties{
 					Url:                   requestJobs.Url,
