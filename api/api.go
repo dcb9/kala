@@ -15,8 +15,9 @@ import (
 	"github.com/ajvb/kala/job/storage/boltdb"
 	"github.com/codegangsta/negroni"
 	"github.com/gorilla/mux"
-	"time"
+	"github.com/rs/cors"
 	"strings"
+	"time"
 )
 
 const (
@@ -182,7 +183,7 @@ func HandleFixedJobsRequest(cache job.JobCache, db job.JobDB, fixedJobs *[]*fixe
 				intervalBetweenRuns = fixed.DefaultProductPagesCrawlerInterval
 			} else {
 				errStr := fmt.Sprintf(`job suffix must be "-site-crawler" OR "-product-pages-crawler"`)
-				log.Error("job name: " + addingJ.Name, errStr)
+				log.Error("job name: "+addingJ.Name, errStr)
 				errors = append(errors, &FixedJobError{
 					Job:    addingJ,
 					Method: "Add",
@@ -488,5 +489,8 @@ func StartServer(listenAddr string, cache job.JobCache, db job.JobDB, defaultOwn
 	SetupApiRoutes(r, cache, db, defaultOwner, fixedJobs)
 	n := negroni.New(negroni.NewRecovery(), &middleware.Logger{log.Logger{}})
 	n.UseHandler(r)
-	return http.ListenAndServe(listenAddr, n)
+	handler := cors.New(cors.Options{
+		AllowedMethods: []string{"GET", "POST", "DELETE", "PATCH"},
+	}).Handler(n)
+	return http.ListenAndServe(listenAddr, handler)
 }
